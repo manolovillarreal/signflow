@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Container, Typography, Box, Grid, Card, CardContent, CardActions, Button, AppBar, Toolbar, IconButton, Fab } from '@mui/material';
+import { Container, Typography, Box, Grid, Card, CardContent, CardActions, Button, AppBar, Toolbar, IconButton, Fab, Dialog, DialogTitle, DialogContent, DialogActions, TextField, CircularProgress } from '@mui/material';
 import { Add as AddIcon, Logout as LogoutIcon } from '@mui/icons-material';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, addDoc } from 'firebase/firestore';
 import { db, auth } from '../services/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import type { Group } from '../types';
@@ -12,22 +12,51 @@ const Dashboard: React.FC = () => {
   const [groups, setGroups] = useState<Group[]>([]);
   const navigate = useNavigate();
 
+  // Create Group Modal State
+  const [openModal, setOpenModal] = useState(false);
+  const [nombre, setNombre] = useState('');
+  const [descripcion, setDescripcion] = useState('');
+  const [creating, setCreating] = useState(false);
+
+  const fetchGroups = async () => {
+    if (!user) return;
+    const q = query(collection(db, 'groups'), where('miembros', 'array-contains', user.uid));
+    const querySnapshot = await getDocs(q);
+    const fetchedGroups: Group[] = [];
+    querySnapshot.forEach((doc) => {
+      fetchedGroups.push({ id: doc.id, ...doc.data() } as Group);
+    });
+    setGroups(fetchedGroups);
+  };
+
   useEffect(() => {
-    if (user) {
-      const fetchGroups = async () => {
-        // Query groups where user is a member or admin. For simplicity, checking miembros array.
-        // In Firestore, we use 'array-contains'. 
-        const q = query(collection(db, 'groups'), where('miembros', 'array-contains', user.uid));
-        const querySnapshot = await getDocs(q);
-        const fetchedGroups: Group[] = [];
-        querySnapshot.forEach((doc) => {
-          fetchedGroups.push({ id: doc.id, ...doc.data() } as Group);
-        });
-        setGroups(fetchedGroups);
-      };
-      fetchGroups();
-    }
+    fetchGroups();
   }, [user]);
+
+  const handleCreateGroup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !nombre.trim()) return;
+    setCreating(true);
+    try {
+      const groupData = {
+        nombre: nombre.trim(),
+        descripcion: descripcion.trim(),
+        creadorUid: user.uid,
+        administradores: [user.uid],
+        miembros: [user.uid],
+        fechaCreacion: Date.now()
+      };
+      const docRef = await addDoc(collection(db, 'groups'), groupData);
+      setGroups(prev => [...prev, { id: docRef.id, ...groupData }]);
+      setNombre('');
+      setDescripcion('');
+      setOpenModal(false);
+    } catch (error) {
+      console.error('Error creating group:', error);
+    } finally {
+      setCreating(false);
+    }
+  };
 
   const handleLogout = () => {
     auth.signOut();
@@ -41,7 +70,7 @@ const Dashboard: React.FC = () => {
             SignFlow
           </Typography>
           <Typography variant="body2" sx={{ mr: 2 }}>
-            Hola, {user?.nombre}
+            Hola, {user?.nombre} {user?.rol === 'superuser' ? '(SuperAdmin)' : ''}
           </Typography>
           <IconButton color="inherit" onClick={handleLogout}>
             <LogoutIcon />
@@ -83,12 +112,46 @@ const Dashboard: React.FC = () => {
         </Grid>
 
         { (user?.rol === 'superuser' || user?.rol === 'admin' || user?.uid === 'PdKtgSfemAVAkIScFDdxEAnIqL33') && (
-          <Fab color="primary" sx={{ position: 'fixed', bottom: 32, right: 32 }} onClick={() => {
-            // Implement create group modal
-          }}>
+          <Fab color="primary" sx={{ position: 'fixed', bottom: 32, right: 32 }} onClick={() => setOpenModal(true)}>
             <AddIcon />
           </Fab>
         )}
+
+        {/* Create Group Modal */}
+        <Dialog open={openModal} onClose={() => setOpenModal(false)} maxWidth="xs" fullWidth>
+          <form onSubmit={handleCreateGroup}>
+            <DialogTitle>Crear Nuevo Grupo</DialogTitle>
+            <DialogContent>
+              <TextField
+                autoFocus
+                margin="dense"
+                label="Nombre del Grupo"
+                fullWidth
+                variant="outlined"
+                value={nombre}
+                onChange={(e) => setNombre(e.target.value)}
+                required
+                sx={{ mb: 2 }}
+              />
+              <TextField
+                margin="dense"
+                label="Descripción"
+                fullWidth
+                multiline
+                rows={3}
+                variant="outlined"
+                value={descripcion}
+                onChange={(e) => setDescripcion(e.target.value)}
+              />
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setOpenModal(false)} disabled={creating}>Cancelar</Button>
+              <Button type="submit" variant="contained" color="primary" disabled={creating || !nombre.trim()}>
+                {creating ? <CircularProgress size={24} /> : 'Crear'}
+              </Button>
+            </DialogActions>
+          </form>
+        </Dialog>
       </Container>
     </Box>
   );
