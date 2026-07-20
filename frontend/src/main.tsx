@@ -1,0 +1,15 @@
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App.tsx';
+import { AuthProvider } from './contexts/AuthContext.tsx';
+import { AppThemeProvider } from './contexts/ThemeContext.tsx';
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <AppThemeProvider>
+      <AuthProvider>
+        <App />
+      </AuthProvider>
+    </AppThemeProvider>
+  </React.StrictMode>,
+);
