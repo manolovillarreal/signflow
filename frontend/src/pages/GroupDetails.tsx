@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Container, Typography, Box, Button, AppBar, Toolbar, IconButton, Grid, Paper, List, ListItem, ListItemText, Chip, Dialog, DialogTitle, DialogContent, DialogActions, TextField, CircularProgress } from '@mui/material';
-import { ArrowBack as ArrowBackIcon, UploadFile as UploadIcon } from '@mui/icons-material';
-import { doc, getDoc, collection, query, where, getDocs, addDoc } from 'firebase/firestore';
+import { Container, Typography, Box, Button, AppBar, Toolbar, IconButton, Grid, Paper, List, ListItem, ListItemText, Chip, Dialog, DialogTitle, DialogContent, DialogActions, TextField, CircularProgress, Alert } from '@mui/material';
+import { ArrowBack as ArrowBackIcon, UploadFile as UploadIcon, PersonAdd as PersonAddIcon } from '@mui/icons-material';
+import { doc, getDoc, collection, query, where, getDocs, addDoc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { ref, uploadBytes } from 'firebase/storage';
 import { db, storage } from '../services/firebase';
 import { useAuth } from '../contexts/AuthContext';
-import type { Group, Document as DocType } from '../types';
+import type { Group, Document as DocType, User } from '../types';
 
 const GroupDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -15,6 +15,7 @@ const GroupDetails: React.FC = () => {
 
   const [group, setGroup] = useState<Group | null>(null);
   const [documents, setDocuments] = useState<DocType[]>([]);
+  const [memberUsers, setMemberUsers] = useState<User[]>([]);
 
   // Upload Modal State
   const [openUploadModal, setOpenUploadModal] = useState(false);
@@ -22,11 +23,30 @@ const GroupDetails: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
 
+  // Add Member Modal State
+  const [openMemberModal, setOpenMemberModal] = useState(false);
+  const [memberEmail, setMemberEmail] = useState('');
+  const [addingMember, setAddingMember] = useState(false);
+  const [memberError, setMemberError] = useState('');
+
   const fetchGroupAndDocs = async () => {
     if (!id) return;
     const groupSnap = await getDoc(doc(db, 'groups', id));
     if (groupSnap.exists()) {
-      setGroup({ id: groupSnap.id, ...groupSnap.data() } as Group);
+      const gData = { id: groupSnap.id, ...groupSnap.data() } as Group;
+      setGroup(gData);
+
+      // Fetch members profiles
+      if (gData.miembros && gData.miembros.length > 0) {
+        const uList: User[] = [];
+        for (const mUid of gData.miembros) {
+          const uSnap = await getDoc(doc(db, 'users', mUid));
+          if (uSnap.exists()) {
+            uList.push(uSnap.data() as User);
+          }
+        }
+        setMemberUsers(uList);
+      }
     }
 
     const q = query(collection(db, 'documents'), where('grupoId', '==', id));
@@ -73,7 +93,49 @@ const GroupDetails: React.FC = () => {
     }
   };
 
+  const handleAddMember = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!id || !memberEmail.trim()) return;
+    setAddingMember(true);
+    setMemberError('');
+
+    try {
+      // Find user by email
+      const q = query(collection(db, 'users'), where('email', '==', memberEmail.trim().toLowerCase()));
+      const snap = await getDocs(q);
+      if (snap.empty) {
+        setMemberError('No se encontró ningún usuario registrado con ese correo.');
+        setAddingMember(false);
+        return;
+      }
+
+      const targetUser = snap.docs[0].data() as User;
+      if (group?.miembros.includes(targetUser.uid)) {
+        setMemberError('El usuario ya es miembro de este grupo.');
+        setAddingMember(false);
+        return;
+      }
+
+      // Add to group.miembros
+      await updateDoc(doc(db, 'groups', id), {
+        miembros: arrayUnion(targetUser.uid)
+      });
+
+      setMemberUsers(prev => [...prev, targetUser]);
+      setGroup(prev => prev ? { ...prev, miembros: [...prev.miembros, targetUser.uid] } : null);
+      setMemberEmail('');
+      setOpenMemberModal(false);
+    } catch (error: any) {
+      console.error('Error adding member:', error);
+      setMemberError(error.message || 'Error al agregar miembro.');
+    } finally {
+      setAddingMember(false);
+    }
+  };
+
   if (!group) return <Typography sx={{ p: 4 }}>Cargando grupo...</Typography>;
+
+  const isAdmin = user && (group.administradores.includes(user.uid) || user.rol === 'superuser' || user.uid === 'PdKtgSfemAVAkIScFDdxEAnIqL33');
 
   return (
     <Box sx={{ flexGrow: 1, minHeight: '100vh', bgcolor: 'background.default' }}>
@@ -119,11 +181,28 @@ const GroupDetails: React.FC = () => {
           </Grid>
           <Grid size={{ xs: 12, md: 4 }}>
             <Paper sx={{ p: 3, borderRadius: 3 }}>
-              <Typography variant="h6" gutterBottom>Detalles del Grupo</Typography>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                <Typography variant="h6">Detalles del Grupo</Typography>
+                {isAdmin && (
+                  <IconButton color="primary" size="small" onClick={() => setOpenMemberModal(true)} title="Agregar Miembro">
+                    <PersonAddIcon />
+                  </IconButton>
+                )}
+              </Box>
               <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
                 {group.descripcion}
               </Typography>
-              <Typography variant="subtitle2">Miembros ({group.miembros.length})</Typography>
+              
+              <Typography variant="subtitle2" gutterBottom>
+                Miembros ({memberUsers.length})
+              </Typography>
+              <List dense>
+                {memberUsers.map((m) => (
+                  <ListItem key={m.uid} sx={{ px: 0 }}>
+                    <ListItemText primary={m.nombre} secondary={m.email} />
+                  </ListItem>
+                ))}
+              </List>
             </Paper>
           </Grid>
         </Grid>
@@ -166,6 +245,34 @@ const GroupDetails: React.FC = () => {
               <Button onClick={() => setOpenUploadModal(false)} disabled={uploading}>Cancelar</Button>
               <Button type="submit" variant="contained" color="primary" disabled={uploading || !file || !docName.trim()}>
                 {uploading ? <CircularProgress size={24} /> : 'Subir'}
+              </Button>
+            </DialogActions>
+          </form>
+        </Dialog>
+
+        {/* Add Member Modal */}
+        <Dialog open={openMemberModal} onClose={() => setOpenMemberModal(false)} maxWidth="xs" fullWidth>
+          <form onSubmit={handleAddMember}>
+            <DialogTitle>Agregar Miembro al Grupo</DialogTitle>
+            <DialogContent>
+              {memberError && <Alert severity="error" sx={{ mb: 2 }}>{memberError}</Alert>}
+              <TextField
+                autoFocus
+                margin="dense"
+                label="Correo del Usuario"
+                type="email"
+                fullWidth
+                variant="outlined"
+                value={memberEmail}
+                onChange={(e) => setMemberEmail(e.target.value)}
+                required
+                placeholder="ejemplo@correo.com"
+              />
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setOpenMemberModal(false)} disabled={addingMember}>Cancelar</Button>
+              <Button type="submit" variant="contained" color="primary" disabled={addingMember || !memberEmail.trim()}>
+                {addingMember ? <CircularProgress size={24} /> : 'Agregar'}
               </Button>
             </DialogActions>
           </form>
