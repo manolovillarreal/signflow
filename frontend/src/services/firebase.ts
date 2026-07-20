@@ -5,13 +5,13 @@ import { getStorage } from "firebase/storage";
 import { getFunctions } from "firebase/functions";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyA9gMZu6tOmIteOn_QMN7tiVyrrv22ABrk",
-  authDomain: "signflow-a431a.firebaseapp.com",
-  projectId: "signflow-a431a",
-  storageBucket: "signflow-a431a.firebasestorage.app",
-  messagingSenderId: "536651470453",
-  appId: "1:536651470453:web:8d9b51d95780ad102e8a3c",
-  measurementId: "G-WXBF6FJDH0"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
 // Initialize Firebase
