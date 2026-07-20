@@ -4,7 +4,7 @@ import { Add as AddIcon, Logout as LogoutIcon } from '@mui/icons-material';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db, auth } from '../services/firebase';
 import { useAuth } from '../contexts/AuthContext';
-import { Group } from '../types';
+import type { Group } from '../types';
 import { useNavigate } from 'react-router-dom';
 
 const Dashboard: React.FC = () => {

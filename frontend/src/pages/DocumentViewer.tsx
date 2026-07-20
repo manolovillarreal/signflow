@@ -6,11 +6,11 @@ import { doc, getDoc, collection, query, where, getDocs, updateDoc } from 'fireb
 import { ref, getDownloadURL, uploadString } from 'firebase/storage';
 import { db, storage } from '../services/firebase';
 import { useAuth } from '../contexts/AuthContext';
-import { Document as DocType, SignatureConfig } from '../types';
+import type { Document as DocType, SignatureConfig } from '../types';
 import SignatureCanvas from 'react-signature-canvas';
 import { Document, Page, pdfjs } from 'react-pdf';
-import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
-import 'react-pdf/dist/esm/Page/TextLayer.css';
+import 'react-pdf/dist/Page/AnnotationLayer.css';
+import 'react-pdf/dist/Page/TextLayer.css';
 
 // Set worker for react-pdf
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
@@ -146,7 +146,7 @@ const DocumentViewer: React.FC = () => {
                   onClick={() => isMyTurn ? handleOpenSignModal(sig) : null}
                 >
                   {!sig.firmadoPorUid && isMyTurn && (
-                    <Typography variant="caption" fontWeight="bold" color="secondary.main">
+                    <Typography variant="caption" color="secondary.main" sx={{ fontWeight: 'bold' }}>
                       Click para firmar
                     </Typography>
                   )}

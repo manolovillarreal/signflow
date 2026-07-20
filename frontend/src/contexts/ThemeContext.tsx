@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useMemo } from 'react';
+import React, { createContext, useMemo } from 'react';
 import { ThemeProvider as MUIThemeProvider, createTheme, CssBaseline } from '@mui/material';
 import { useAppStore } from '../store';
 
