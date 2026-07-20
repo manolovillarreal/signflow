@@ -82,11 +82,13 @@ const Dashboard: React.FC = () => {
           )}
         </Grid>
 
-        <Fab color="primary" sx={{ position: 'fixed', bottom: 32, right: 32 }} onClick={() => {
-          // Implement create group modal
-        }}>
-          <AddIcon />
-        </Fab>
+        { (user?.rol === 'superuser' || user?.rol === 'admin' || user?.uid === 'PdKtgSfemAVAkIScFDdxEAnIqL33') && (
+          <Fab color="primary" sx={{ position: 'fixed', bottom: 32, right: 32 }} onClick={() => {
+            // Implement create group modal
+          }}>
+            <AddIcon />
+          </Fab>
+        )}
       </Container>
     </Box>
   );

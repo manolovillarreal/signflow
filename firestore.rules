@@ -10,16 +10,24 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == uid;
     }
 
+    function isSuperuser() {
+      return isAuthenticated() && (request.auth.uid == 'PdKtgSfemAVAkIScFDdxEAnIqL33' || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.rol == 'superuser');
+    }
+
+    function canCreateGroups() {
+      return isSuperuser() || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.rol == 'admin';
+    }
+
     match /users/{uid} {
       allow read: if isAuthenticated();
-      allow write: if isUser(uid);
+      allow write: if isUser(uid) || isSuperuser();
     }
     
     match /groups/{groupId} {
-      allow read: if isAuthenticated() && (request.auth.uid in resource.data.miembros || request.auth.uid in resource.data.administradores);
-      allow create: if isAuthenticated();
-      allow update: if isAuthenticated() && request.auth.uid in resource.data.administradores;
-      allow delete: if isAuthenticated() && request.auth.uid == resource.data.creadorUid;
+      allow read: if isAuthenticated() && (isSuperuser() || request.auth.uid in resource.data.miembros || request.auth.uid in resource.data.administradores);
+      allow create: if isAuthenticated() && canCreateGroups();
+      allow update: if isAuthenticated() && (isSuperuser() || request.auth.uid in resource.data.administradores);
+      allow delete: if isAuthenticated() && (isSuperuser() || request.auth.uid == resource.data.creadorUid);
     }
 
     match /documents/{documentId} {

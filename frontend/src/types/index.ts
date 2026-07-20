@@ -4,6 +4,7 @@ export interface User {
   email: string;
   foto?: string;
   fechaCreacion: number;
+  rol?: 'superuser' | 'admin' | 'user';
 }
 
 export interface Group {

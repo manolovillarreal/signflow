@@ -1,7 +1,7 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import { PDFDocument } from 'pdf-lib';
-import fetch from 'node-fetch'; // need node-fetch or native fetch in node 18+
+
 
 if (!admin.apps.length) {
   admin.initializeApp();

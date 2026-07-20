@@ -27,15 +27,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const userRef = doc(db, 'users', fbUser.uid);
         const userSnap = await getDoc(userRef);
         
+        const SUPERUSER_UID = 'PdKtgSfemAVAkIScFDdxEAnIqL33';
+        const isSuperUser = fbUser.uid === SUPERUSER_UID;
+
         if (userSnap.exists()) {
-          setUser(userSnap.data() as User);
+          const userData = userSnap.data() as User;
+          if (isSuperUser && userData.rol !== 'superuser') {
+            const updatedUser = { ...userData, rol: 'superuser' as const };
+            await setDoc(userRef, { rol: 'superuser' }, { merge: true });
+            setUser(updatedUser);
+          } else {
+            setUser(userData);
+          }
         } else {
           const newUser: User = {
             uid: fbUser.uid,
             nombre: fbUser.displayName || 'Usuario',
             email: fbUser.email || '',
             foto: fbUser.photoURL || '',
-            fechaCreacion: Date.now()
+            fechaCreacion: Date.now(),
+            rol: isSuperUser ? 'superuser' : 'user'
           };
           await setDoc(userRef, newUser);
           setUser(newUser);
